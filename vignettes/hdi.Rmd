@@ -1,0 +1,103 @@
+---
+title: "High Dimensional statistical Inference"
+author: "Hangjun Guo"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{High Dimensional statistical Inference}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+library(knitr)
+```
+
+Consider the following high-dimensional linear regression model
+$$\mathbf{y}_{(n \times 1)}=\mathbf{X}_{(n \times p)} \boldsymbol{\beta}_{(p \times 1)}+\boldsymbol{\varepsilon}_{(n \times 1)}$$
+In the high-dimensional setup, the number of features $p$ is allowed to grow nonpolynomially fast with the sample size $n$, while the true regression coefficient vector $\mathbf{\beta}$ generally adopts some sparse structure.
+
+Low dimensional projection estimator (LDPE) can be regarded as a self-bias correction from an initial estimate and is defined through each coordinate as
+$$
+\widehat{\beta}_{j}^{\mathrm{L}}=\widehat{\beta}_{j}^{(\mathrm{init})}+\mathbf{z}_{j}^{T}\left(\mathbf{y}-\mathbf{X} \widehat{\boldsymbol{\beta}}^{(\mathrm{init})}\right) / \mathbf{z}_{j}^{T} \mathbf{x}_{j}
+$$
+Where $\mathbf{z}_{j}$ is orthogonalization vector. However, LDPE only allows for a small number of identifiable coefficients for a certain sample size $n$. The main reason is that the construction of orthogonalization vector $\mathbf{z}_{j}$ in LDPE does not distinguish between identifiable and weak signals, which leads to the aforementioned harsh constraint on the number of identifiable predictors, as well as the required sample size $n$.
+
+To address this issue, we propose to construct the orthogonalization vector $\mathbf{z}_{j}$ adaptively after finding the identifiable coeficients by some feature screening procedures such as SIS. The basic idea is adaptive orthogonalization vector $\mathbf{z}_{j}$ should be orthogonal to the other covariate vectors corresponding to the identifiable signals so that the impacts of them can be completely removed in the bias term. At the same time, it should be a relaxed orthogonalization against the remaining covariate vectors, i.e. those weak signals.
+
+Below we set the the number of nonzero coeficients $s$ varies from 15 to 25, the sample size $n=200$, the dimensionality $p=300$, and the covariate correlation parameter $\rho=0.8$. We focus on construct confidence intervals for each regression coefficients using LDPE and APE respectively, and compare the averaged coverage probability of the nonzero coefficients and the averaged length of confidence intervals of all coefficients.
+```{r echo=T, results='hide'}
+library(StatComp21003)
+library(MASS)
+library(glmnet)
+library(ncpen)
+library(SIS)
+library(VariableScreening)
+library(bestglm)
+library(hdi)
+ss <- seq(15, 25, by=5)
+finalresult_ldp <- matrix(nrow=length(ss), ncol=6)
+finalresult_ap <- matrix(nrow=length(ss), ncol=6)
+n <- 200;  p <- 300;  rho <- 0.8
+counter <- 1
+for(k in 1:length(ss)){
+  
+  set.seed(99)
+  s <- ss[k]
+  S_0 <- c(1:s)#sample(seq(1, 500, 1), 15)
+  c <- 2
+  truebeta <- rep(0, p)
+  truebeta[S_0] <- runif(s, 0, c)
+  
+  m <- 3
+  cpmax_ldp <- rep(-1,m); cpall_ldp <- rep(-1, m); len_ldp <- rep(-1, m)
+  cpmax_ap <- rep(-1,m); cpall_ap <- rep(-1, m); len_ap <- rep(-1, m)
+  for(i in 1:m){
+    
+    dat <- simdata(n, p, rho, truebeta)
+    X <- dat$X
+    y <- dat$y
+    objsis <- suppressMessages(SIS(X, y, family = 'gaussian', tune = 'bic'))
+    S <- objsis$sis.ix0
+    
+    objLDP <- LDP(X, y)
+    CI <- objLDP$CI;  len_CI <- objLDP$len_CI
+    
+    cpmax_ldp[i] <- length(intersect(which(truebeta[S_0]>=CI[1,S_0]), 
+                                     which(truebeta[S_0]<=CI[2,S_0])))/s
+    cpall_ldp[i] <- length(intersect(which(truebeta>=CI[1,]), 
+                                     which(truebeta<=CI[2,])))/p
+    len_ldp[i] <- mean(len_CI)
+    
+    objAP <- AP(X, y, S)
+    CI <- objAP$CI; len_CI <- objAP$len_CI
+    
+    cpmax_ap[i] <- length(intersect(which(truebeta[S_0]>=CI[1,S_0]), 
+                                    which(truebeta[S_0]<=CI[2,S_0])))/s
+    cpall_ap[i] <- length(intersect(which(truebeta>=CI[1,]), 
+                                    which(truebeta<=CI[2,])))/p
+    len_ap[i] <- mean(len_CI)
+  }
+  
+  
+  finalresult_ldp[counter, ] <- c(p, s, c, mean(cpall_ldp), mean(cpmax_ldp), mean(len_ldp))
+  finalresult_ap[counter, ] <- c(p, s, c, mean(cpall_ap), mean(cpmax_ap), mean(len_ap))
+  counter <- counter+1
+}
+```
+
+
+```{r}
+cpmax <- cbind(finalresult_ap[,c(2,5)], finalresult_ldp[,5])
+dimnames(cpmax)[[2]] <- c("s", "CP_APE", "CP_LDPE")
+kable(cpmax, caption = "Averaged coverage probability of the nonzero coefficients")
+```
+
+
+```{r}
+len <- cbind(finalresult_ap[,c(2,6)], finalresult_ldp[,6])
+dimnames(len)[[2]] <- c("s", "length_APE", "length_LDPE")
+kable(len, caption = "Averaged length of confidence intervals of all coefficients")
+```
+
+

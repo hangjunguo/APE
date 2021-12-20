@@ -1,0 +1,1483 @@
+---
+title: "StatComp21003 homework"
+author: "Hangjun Guo"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{StatComp21003 homework}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+```
+
+## A-21003-2021-09-23
+
+## Question
+Exercises 3.4, 3.11, and 3.20 (pages 94-96, Statistical Computing with R).
+
+## Answer
+
+**3.4**
+
+算法原理：注意到若$Y \sim \operatorname{Exp}(1)$，令$X = \sqrt{2 \sigma^2 Y}$，则随机变量$X$的密度函数为
+$$
+f(x)=\left(\frac{x^2}{2 \sigma^{2}}\right)^{'} e^{-x^{2} /\left(2 \sigma^{2}\right)}=
+\frac{x}{\sigma^{2}} e^{-x^{2} /\left(2 \sigma^{2}\right)},
+$$
+其中$x \geq 0, \sigma>0$，从而得到$f(x)$为Rayleigh分布密度函数。因此可以通过指数随机变量$Y$生成Rayleigh随机变量$X$。
+对不同参数$\sigma=1, 2, 3, 4, 5$生成$\operatorname{Rayleigh}(\sigma)$分布随机数的R代码如下所示：
+```{r}
+library(knitr)#加载knitr package
+
+#生成Rayleigh分布随机数
+rrayleigh = function (size, sigma) {
+  stopifnot(sigma > 0)#参数sigma>0
+  u <-  runif(size)#均匀分布随机数
+  sqrt(-2*sigma^2*log(u))#通过指数随机数生成Rayleigh随机数，其中-log(u)为指数随机数
+}
+
+#Rayleigh分布密度函数
+drayleigh = function (x, sigma) {
+  stopifnot(sigma > 0)#参数sigma>0
+  y <-  x / (sigma^2) * exp(- x^2 / (2 * sigma^2))#Rayleigh分布密度函数
+  y[x < 0] <-  0#x<0时密度为0
+  y
+}
+
+#对不同的sigma=1, 2, 3, 4, 5分别生成Rayleigh随机数
+size <- 1500#样本量
+sigmas <- c(1, 2, 3, 4, 5)#参数sigma取值
+samples <- sapply(sigmas, function(x) rrayleigh(size, x))#利用sapply对不同sigma生成Rayleigh随机数
+samples <- data.frame(samples)#转为数据框
+dimnames(samples)[[2]] <- paste("sigma =", sigmas)#重命名各列
+kable(head(samples), caption = "表1.1：sigma=1, 2, 3, 4, 5时生成的Rayleigh随机数")#绘制数据样本表格
+```
+
+对$\sigma=1$通过直方图验证生成的随机数近似于理论分布。
+
+可以看到，样本量$n$很大时，样本直方图与精确概率密度曲线将非常接近。
+
+**3.11**
+
+首先生成1000个由两个正态随机变量$X_1 \sim N(0, 1)$和$X_2 \sim N(3, 1)$组成的复合分布随机数$X$。算法原理为先生成随机数$X_1$和$X_2$，则以概率$p_1$取值$X_1$，以概率$p_2$取值$X_2$即可得到复合分布随机数$X$。R代码如下所示：
+```{r fig.cap="图2.1：p1=0.75时复合分布的样本直方图和密度曲线"}
+#生成复合分布随机数
+rmix = function(size, p){
+  x1 <- rnorm(size, 0, 1)#生成x1
+  x2 <- rnorm(size, 3, 1)#生成x2
+  u <- runif(size)#生成均匀分布随机数
+  t <- as.integer(u<p)#t以概率p取1，以概率1-p取0
+  x <- t*x1 + (1-t)*x2#生成复合分布随机数x
+}
+
+n <- 1000#样本量1000
+p1 <- 0.75#p1取0.75
+x <- rmix(n, p1)#生成1000个复合分布随机数
+
+#绘制直方图和密度曲线
+hist(x, freq = F, ylim=c(0, 0.3), main="", xlab="", ylab="")
+lines(density(x), col="red")
+```
+
+由图2.1可以看到，当$p_1=0.75$时上述复合分布的经验密度曲线略有双峰性，在$x=0$附近峰度较大，在$x=3$附近峰度较小。
+
+接下来改变多组$p_1$取值，探究密度曲线双峰性的改变情况。下取$p_1={0.1, 0.2, ..., 0.9}$进行重复试验。
+```{r fig.cap="图2.2：不同p1取值下复合分布的样本直方图和密度曲线"}
+# par(mfrow = c(3,3))#以下生成3*3图形矩阵
+# 
+# for(p1 in seq(0.1, 0.9, 0.1)){
+#   x <- rmix(n, p1)#对不同p1生成复合分布随机数
+#   #绘制直方图和密度曲线
+#   hist(x, freq = F, xlim=c(-6, 6), ylim=c(0, 0.4), main=paste("p1 = ", p1), xlab="", ylab="")
+#   lines(density(x), col="red")
+# }
+```
+由图2.2可以看到，当$p_1$取值在$0.5$附近时上述复合分布的经验密度曲线双峰性最强，而$p_1$取值接近$0$或$1$时双峰性均逐渐消失。由此可以推测当$0<p_1<1$时上述复合分布密度曲线具有双峰性，且当$p_1=0.5$时密度曲线双峰性最强，$p_1$取值接近$0$或$1$时双峰性逐渐减弱；且当$p_1=0$或$1$时上述复合分布密度曲线无双峰性，此时复合分布退化为正态分布$N(3, 1)$或$N(0, 1)$。
+
+**3.20**
+
+由题意知，复合泊松过程$X(t)=\sum_{i=1}^{N(t)} Y_{i}, t \geq 0$，其中$\{N(t), t \geq 0\}$是参数为$\lambda$的泊松过程，$Y_1, Y_2, ...$独立同分布并且与$\{N(t), t \geq 0\}$相互独立。当$Y$服从伽玛分布时，$X(t)$为复合泊松-伽玛过程。模拟该过程的具体R代码如下所示：
+```{r}
+#泊松过程参数lambda, t；Gamma分布参数shape, scale
+#生成复合泊松-伽玛过程的算法
+PoiGammaProc = function(lambda, t, shape, scale){
+  Tn <- rexp(1000, lambda)#不知道需要多少Tn，因此生成充分多的Tn。Tn为泊松过程的间隔时间服从指数分布
+  Sn <- cumsum(Tn)#计算泊松过程到达时间
+  n <- min(which(Sn > t)) - 1#[0, t]内的到达次数即为泊松过程随机数
+  Y <- rgamma(n, shape = shape, scale = 1/scale)#生成N(t)个iid伽玛随机数Gamma(shape, scale)
+  X <- sum(Y)#对N(t)个iid伽玛随机数求和，得到复合泊松-伽玛过程随机数
+}
+```
+
+下面选择不同参数分别生成复合泊松-伽玛过程$X(10)$，计算所生成样本的期望和方差，并与理论值进行对比。
+
+- 参数选择：取伽玛随机变量$Y \sim \operatorname{Gamma}(\alpha, \beta)$的形状参数$\alpha=4$和尺度参数$\beta=2$，变化泊松过程强度参数$\lambda={1, 2, 3}$。
+- 复合泊松-伽玛过程$X(t)=\sum_{i=1}^{N(t)} Y_{i}$的期望$E[X(t)]=\lambda t E[Y_{1}]$，方差$Var[X(t)]=\lambda t E[Y_{1}^{2}]$。证明如下：
+令$E[Y_1]=\mu$， $Var(Y_1)=\sigma^2$，通过对$N(t)$取条件期望可以得到，
+$$
+E[X(t)]=E[E[\sum_{i=1}^{n} Y_{i} \mid N(t)=n]]=E[N(t) \mu]=\lambda t \cdot \mu=\lambda t E\left[Y_{1}\right]
+$$
+$$
+\begin{aligned}
+\operatorname{Var}[X(t)] &=\operatorname{Var}\left[E\left[\sum_{i=1}^{n} Y_{i} \mid N(t)=n\right]\right]+E\left[\operatorname{Var}\left[\sum_{i=1}^{n} Y_{i} \mid N(t)=n\right]\right] \\
+&=\operatorname{Var}[N(t) \mu]+E\left[N(t)\sigma^2\right]=\mu^{2} \operatorname{Var}[N(t)]+\sigma^2 E[N(t)] \\
+&=\mu^{2} \lambda t+\sigma^2 \lambda t=\lambda t E\left[Y_{1}^{2}\right]
+\end{aligned}
+$$
+
+代入伽玛分布期望和方差进一步可得，$E[X(t)]= \frac{\lambda t\alpha}{\beta}$，$Var[X(t)]=\frac{\lambda t(\alpha^2+\alpha)}{\beta^2}$。
+```{r}
+t <- 10#取t=10
+lambda <- c(1:3)#变化泊松过程强度参数lambda=1,2,3
+shape <- 4#伽玛分布形状参数取4
+scale <- 2#伽玛分布尺度参数取2
+size <- 1000#样本量为1000
+#对不同参数lambda分别生成复合泊松-伽玛过程
+Xt1 <- replicate(size, PoiGammaProc(lambda[1], t, shape, scale))#lambda=1
+Xt2 <- replicate(size, PoiGammaProc(lambda[2], t, shape, scale))#lambda=2
+Xt3 <- replicate(size, PoiGammaProc(lambda[3], t, shape, scale))#lambda=3
+mat <- cbind(Xt1, Xt2, Xt3)#将三组样本合并为样本矩阵
+
+#均值的对比
+mean.s <- apply(mat, 2, mean, trim=.5)#利用apply函数计算模拟样本均值
+mean.th <- sapply(lambda, function(x){
+  x*t*shape/scale
+})#计算理论复合泊松-伽玛过程的均值
+mean.mat <- rbind(mean.s, mean.th)
+kable(mean.mat, caption = "表3.1：复合泊松-伽玛过程模拟样本均值和理论均值对比，变化泊松过程强度参数lambda=1, 2, 3")
+
+#方差的对比
+var.s <- (1-1/size)*apply(mat, 2, var)#利用apply函数计算模拟样本方差
+var.th <- sapply(lambda, function(x){
+  x*t*(shape^2+shape)/scale^2
+})#计算理论复合泊松-伽玛过程的方差
+var.mat <- rbind(var.s, var.th)
+kable(var.mat, caption = "表3.2：复合泊松-伽玛过程模拟样本方差和理论方差对比，变化泊松过程强度参数lambda=1, 2, 3")
+```
+
+由表3.1和表3.2可以看到，通过上述方法模拟得到的复合泊松-伽玛过程$X(10)$的均值和方差，都与理论计算得到的均值和方差非常接近，从而验证了利用上述算法生成复合泊松-伽玛过程的有效性。
+
+
+## A-21003-2021-09-30
+
+## Question
+Exercises 5.4, 5.9, 5.13 and 5.14 (pages 149-151, Statistical Computing with R).
+
+
+## Answer
+
+**5.4**
+
+算法原理：注意到若随机变量$X \sim \operatorname{Beta}(3, 3)$，则$X$的分布函数(cdf)为$F(x)=\int_{0}^{x} 30 t^{2}(1-t)^{2} \mathrm{~d} t$。利用Monte Carlo方法近似计算这一分布函数的R代码如下所示
+```{r}
+#利用MC方法近似计算Beta分布函数
+cdfBeta <- function(x, alpha=3, beta=3, n=10000){ #x为需计算的点，alpha, beta为Beta分布参数，n为MC方法模拟次数
+  stopifnot(x>0 && x<1)#排除定义域(0, 1)外的取值
+  u <- runif(n, 0, x)#10000个[0,x]上的均匀分布随机数
+  g <- (1/beta(alpha, beta)) * u^(alpha-1) * (1-u)^(beta-1)#计算g(x)
+  cdf <- (x-0) * mean(g)#求均值得到cdf
+  return(min(1, cdf))#返回cdf取值，由于cdf函数值不超过1，所以如果模拟结果大于1则取cdf为1
+}
+```
+
+\
+下面利用上述R function估计分布函数$F(x)$，其中$x=0.1, 0.2, ..., 0.9$，并将Monte Carlo方法的模拟结果与R内置函数`pbeta`返回的结果进行对比。
+```{r}
+library(knitr)
+
+set.seed(504)
+x <- seq(0.1, 0.9, 0.1)#生成x=0.1, ..., 0.9
+cdf_MC <- sapply(x, function(z) cdfBeta(z))#利用sapply对每个x利用MC方法计算对应的cdf
+cdf_pbeta <- pbeta(x, 3, 3)#利用R内置函数pbeta计算cdf
+
+result <- cbind(x, cdf_MC, cdf_pbeta)#合并计算结果
+dimnames(result)[[2]] <- c("x", "Monte Carlo", "pbeta")#重命名各列
+kable(result, caption = "表1.1：Monte Carlo方法与R内置函数pbeta分别计算Beta(3, 3)分布函数的结果对比")#利用kable绘制计算结果表格
+```
+
+从表1.1可以看到，Monte Carlo方法的估计结果与R内置函数`pbeta`返回的结果非常接近，从而验证了以上Monte Carlo方法近似计算$X \sim \operatorname{Beta}(3, 3)$分布函数R代码的有效性。
+
+\
+**5.9**
+
+算法原理：由题可得Rayleigh随机变量的分布函数为$F(x)=\int_{0}^{x} \frac{t}{\sigma^{2}} e^{-t^{2} /\left(2 \sigma^{2}\right)} \mathrm{~d} t=1 - e^{-t^{2} /\left(2 \sigma^{2}\right)}$，利用逆变换法易得$X = \sqrt{-2 \sigma^2 log(1-U)}= \sqrt{-2 \sigma^2 log(U)}$为Rayleigh随机变量，其中$U \sim U[0,1]$。则通过对偶变量法生成$\operatorname{Rayleigh}(\sigma)$分布随机数的R代码如下所示
+```{r}
+#对偶变量法生成Rayleigh分布随机数
+rrayleigh = function(sigma, n=10000, antithetic=TRUE){#sigma为Rayleigh分布参数，n模拟次数，antithetic是否应用对偶变量，默认为是
+  u <- runif(n)#生成n/2个均匀随机数
+  if(!antithetic) v <- runif(n) else
+    v <- 1-u#若应用对偶变量，则令后一半均匀随机数v为1-u，否则v为n个均匀随机数且与u独立
+  X1 <- sqrt(-2*sigma^2*log(u))#利用u生成一组Rayleigh分布随机数X1
+  X2 <- sqrt(-2*sigma^2*log(v))#利用v生成一组Rayleigh分布随机数X2
+  X <- (X1+X2)/2#取两组样本均值得到最终估计
+}
+```
+\
+下面分别取不同参数$\sigma=1,2,3,4,5$生成Rayleigh分布随机数，并计算对偶变量法生成的随机数（$\frac{X+X'}{2}$，$X$与$X'$负相关）方差相比简单方法生成的随机数（$\frac{X_1+X_2}{2}$，$X_1$与$X_2$相互独立）方差减少的比例。
+```{r}
+sigmas <- c(1:5)#初始化参数sigma
+var_reduction <- matrix(nrow = 1, ncol = length(sigmas))#存储结果矩阵
+set.seed(509)
+for(i in 1:length(sigmas)){
+  simple <- rrayleigh(sigmas[i], antithetic = FALSE)#利用简单方法生成Rayleigh分布随机数，X1与X2独立
+  antithetic <- rrayleigh(sigmas[i])#利用对偶变量生成Rayleigh分布随机数，X1与X2负相关
+  var_reduction[1, i] <- (var(simple)-var(antithetic))/var(simple)#对偶变量法相比简单方法的方差减少比例
+}
+dimnames(var_reduction)[[2]] <- paste("sigma =", sigmas)#重命名各列
+kable(var_reduction, caption = "表2.1：对偶变量法生成Rayleigh随机数相比简单方法生成Rayleigh随机数方差减少的比例")#绘制结果表格
+```
+从表2.1可以看到，对偶变量法（$\frac{X+X'}{2}$，$X$与$X'$负相关）相比简单方法（$\frac{X_1+X_2}{2}$，$X_1$与$X_2$相互独立）所生成估计的方差能够减少约95%，所以对偶变量法相对更优。
+
+\
+**5.13**
+
+由题设被积函数$g(x)=\frac{x^{2}}{\sqrt{2 \pi}} e^{-x^{2} / 2}, \quad x>1$，可以选取两个接近于$g(x)$的importance function分别为Pareto分布密度
+$$
+f_{1}(x)=\frac{1}{x^2}, \quad x>1
+$$
+和
+$$
+f_{2}(x)=e^{1-x}, \quad x>1
+$$
+显然$f_1$和$f_2$都在$(1,\infty)$具有支撑。$\frac{g(x)}{f(x)}$越接近于常数，则利用importance sampling所生成估计的方差越小。为说明这点，下面生成$\frac{g(x)}{f(x)}$的函数图像进行比较
+```{r fig.cap="图3.1：g/f的函数图像", fig.height=7}
+g = function (x) {
+  x ^ 2 / sqrt(2*pi) * exp(-x^2/2) * (x>1)
+}
+
+x <- seq(1, 10, 0.1)#取点
+y_g <- g(x)#g(x)函数值
+y_f1 <- 1 / x^2#f1函数值
+y_f2 <- exp(1-x)#f2函数值
+
+#绘制g/f的函数图像
+ylim <- max(c(y_g/y_f1, y_g/y_f2))
+gs <- c(expression(f[1](x)==1/x^2),
+        expression(f[2](x)==e^{1-x}))
+w <- 2
+plot(x, y_g/y_f1, type = "l", ylab = "",
+        ylim = c(0, ylim), lwd = w, lty = 2, col=2)
+lines(x, y_g/y_f2, lty = 3, lwd = w,col=3)
+legend("topright", legend = gs,
+       lty = 2:3, lwd = w, inset = 0.02,col=2:3)
+```
+
+从图3.1可以看到，$\frac{g(x)}{f_2(x)}$函数值波动幅度较小，即更加接近于常数，所以利用$f_2(x)$的importance sampling所生成估计的方差将会更小。下面通过模拟计算进一步验证
+```{r}
+n <- 10000
+theta.hat <- se <- numeric(2)#存储估计值theta.hat和标准差se
+set.seed(513)
+
+#importance function取f1，逆变换法
+u <- runif(n)
+x <- 1 / (1-u)
+fg <- g(x) / (1/x^2)
+theta.hat[1] <- mean(fg)
+se[1] <- sd(fg)
+
+#importance function取f2，逆变换法
+u <- runif(n)
+x <- 1-log(u)
+fg <- g(x) / exp(1-x)
+theta.hat[2] <- mean(fg)
+se[2] <- sd(fg)
+
+result <- cbind(theta.hat, se)
+dimnames(result)[[1]] <- c("f1", "f2")
+kable(result, caption = "表3.1：利用f1和f2的importance sampling所生成的估计和标准差对比")#kable绘制结果表格
+```
+
+从表3.1容易看到，两种方法估计结果theta.hat相近，但显然利用$f_2(x)$的importance sampling所生成估计的方差更小。
+
+\
+**5.14**
+
+令$\theta=\int_{1}^{\infty} \frac{x^{2}}{\sqrt{2 \pi}} e^{-x^{2} / 2} d x$，$g(x)=\frac{x^{2}}{\sqrt{2 \pi}} e^{-x^{2} / 2}$。为利用importance sampling得到$\theta$的Monte Carlo估计，由题5.13中所述，这里选取较优的importance function
+$$
+f(x)=e^{1-x}, \quad x>1
+$$
+于是有
+$$\theta=\int_{1}^{\infty} \frac{x^{2}}{e\sqrt{2 \pi}} e^{x-x^{2} / 2} f(x) d x$$
+并且由逆变换法易得，该分布密度对应的随机变量可由$X=1-log(U)$，其中$U \sim U[0,1]$生成。则利用importance sampling进行估计的R代码如下所示
+```{r}
+n <- 10000
+theta.hat <- se <- numeric(1)#存储估计值theta.hat和标准差se
+set.seed(514)
+
+#importance function取f，逆变换法
+u <- runif(n)
+x <- 1 - log(u)
+fg <- g(x) / exp(1-x)
+theta.hat[1] <- mean(fg)
+se[1] <- sd(fg)
+
+result <- cbind(theta.hat, se)
+kable(result, caption = "表4.1：利用importance sampling所生成的MC估计和标准差")#kable绘制结果表格
+```
+
+从表4.1可以看到，所求积分的importance sampling估计约为0.4。
+
+
+## A-21003-2021-10-14
+
+## Question
++ Exercises 6.5 and 6.A (pages 180-181, Statistical Computing with R).
+
++ If we obtain the powers for two methods under a particular simulation setting with 10,000 experiments: say, 0.651 for one method and 0.676 for another method. We want to know if the powers are different at 0.05 level.
+
+- What is the corresponding hypothesis test problem?
+
+- What test should we use? Z-test,  two-sample t-test, paired-t test or McNemar test? Why?
+
+- Please provide the least necessary information for hypothesis testing.
+
+
+## Answer
+
+### 6.5
+
+容易知道均值的95%对称t置信区间由下式给出
+$$[\bar{X}-\frac{S}{\sqrt{n}}t_{n-1}(0.975), \bar{X}+\frac{S}{\sqrt{n}}t_{n-1}(0.975)]$$
+当样本来自$\chi^{2}(2)$时，下面利用Monte Carlo方法估计上述t置信区间的覆盖概率，每次模拟样本量$n=20$。R代码如下所示
+```{r}
+library(knitr)
+set.seed(605)
+calcCI <- function(n, alpha){
+  x <- rchisq(n, 2)
+  c1 <- mean(x) - sd(x)*qt(1-alpha/2, n-1)/sqrt(n)
+  c2 <- mean(x) + sd(x)*qt(1-alpha/2, n-1)/sqrt(n)
+  y <- as.integer(2>=c1 && 2<=c2)
+  return(y)
+}
+
+n <- 20
+alpha <- 0.05
+m <- 5000
+ys <- replicate(m, expr = calcCI(n, alpha))
+kable(mean(ys), caption = "表1.1：样本来自chi^2(2)时t置信区间的覆盖概率")
+```
+可以看到当样本来自$\chi^{2}(2)$时，上述均值的t置信区间的覆盖概率约为92%，小于理论值95%。
+\
+下面按照Example 6.4的方式，将来自$N(0,4)$的正态样本替换为来自$\chi^{2}(2)$的样本，计算此时方差置信区间的覆盖概率。
+```{r}
+set.seed(605)
+n <- 20
+alpha <- 0.05
+m <- 5000
+ys <- replicate(m, expr = {
+  x <- rchisq(n, 2)
+  c <- (n-1)*var(x) / qchisq(alpha, df=n-1)
+  y <- as.integer(c>4)
+  return(y)
+})
+kable(mean(ys), caption = "表1.2：样本来自chi^2(2)时方差置信区间的覆盖概率")
+```
+从表1.2可以看到，当样本来自$\chi^{2}(2)$时，Example 6.4方差置信区间的覆盖概率约为78%，与理论值95%差距甚远。进一步与上述t置信区间的覆盖概率（约92%）相比较，可以看到当样本偏离正态分布时，t置信区间比方差置信区间表现更加稳健。
+
+
+### 6.A
+
+下面利用Monte Carlo模拟，探究当样本偏离正态分布时，均值t检验的第I类错误概率是否与给定的显著性水平$\alpha$相等。检验问题为$H_{0}: \mu = \mu_{0}$ vs $H_{1}: \mu \neq \mu_{0}$
+
+- (i)样本来自$\chi^{2}(1)$时
+```{r}
+set.seed(0)
+n <- 20
+alpha <- 0.05
+mu0 <- 1
+
+m <- 10000
+ps <- replicate(m, expr = {
+  x <- rchisq(n, mu0)
+  ttest <- t.test(x, alternative = "two.sided", mu=mu0)
+  p <- ttest$p.value
+  return(p)
+})
+
+p.hat <- mean(ps < alpha)
+kable(p.hat, caption = "表2.1：样本来自chi^2(1)时均值t检验的第I类错误概率")
+```
+
+- (ii)样本来自$U[0,2]$时
+```{r}
+set.seed(0)
+n <- 20
+alpha <- 0.05
+mu0 <- 1
+
+m <- 10000
+ps <- replicate(m, expr = {
+  x <- runif(n, 0, 2)
+  ttest <- t.test(x, alternative = "two.sided", mu=mu0)
+  p <- ttest$p.value
+  return(p)
+})
+
+p.hat <- mean(ps < alpha)
+kable(p.hat, caption = "表2.2：样本来自U[0, 2]时均值t检验的第I类错误概率")
+```
+
+- (iii)样本来自$\operatorname{Exp}(1)$时
+```{r}
+set.seed(0)
+n <- 20
+alpha <- 0.05
+mu0 <- 1
+
+m <- 10000
+ps <- replicate(m, expr = {
+  x <- rexp(n, 1)
+  ttest <- t.test(x, alternative = "two.sided", mu=mu0)
+  p <- ttest$p.value
+  return(p)
+})
+
+p.hat <- mean(ps < alpha)
+kable(p.hat, caption = "表2.3：样本来自Exp(1)时均值t检验的第I类错误概率")
+```
+从表2.1-2.3可以看到，(i)样本来自$\chi^{2}(1)$时，t检验的第I类错误概率约为0.1；(ii)样本来自$U[0,2]$时，t检验的第I类错误概率略大于0.05；(iii)样本来自$\operatorname{Exp}(1)$时，t检验的第I类错误概率约为0.08。因此整体来看，t检验在样本略微偏离正态分布时表现较为稳健；分情况对比来看，t检验在样本来自$U[0,2]$时表现最稳健，在样本来自$\operatorname{Exp}(1)$时表现次之，而在样本来自$\chi^{2}(1)$时与理论值0.05差距最大，表现较差。
+
+
+### Question3
+If we obtain the powers for two methods under a particular simulation setting with 10,000 experiments: say, 0.651 for one method and 0.676 for another method. We want to know if the powers are different at 0.05 level.
+
+- What is the corresponding hypothesis test problem?
+
+首先定义两种检验(Test1, Test2)的势分别为：
+
+$\pi_1(\theta_0)$=P(给定参数$\theta=\theta_0$时Test1拒绝$H_0$),
+
+$\pi_2(\theta_0)$=P(给定参数$\theta=\theta_0$时Test2拒绝$H_0$)
+
+则对应的假设检验问题为：$H_{0}:\pi_{1}(\theta_0) = \pi_{2}(\theta_0)\longleftrightarrow H_{1}:\pi_{1}(\theta_0) \neq \pi_{2}(\theta_0)$，显著性水平$\alpha$取0.05。
+\
+
+- What test should we use? Z-test,  two-sample t-test, paired-t test or McNemar test? Why?
+
+由于10000次试验中所得到的数据为成对二分类数据（Test1/Test2是否拒绝了$H_0$），所以此处应该使用McNemar test。
+\
+
+- Please provide the least necessary information for hypothesis testing.
+
+我们已经在此次模拟的10000次试验下得到了两种检验方法的势$\pi_1=0.651$，$\pi_2=0.676$。下面考虑每次试验中两种方法Test1, Test2得到的检验结果（是否拒绝了$H_0$），可以将其表示为如下所示的2x2列联表
+```{r}
+mat <- matrix(nrow = 3, ncol = 3)
+mat[1,1:3] <- c("a","b","a + b")
+mat[2,1:3] <- c("c","d","c + d")
+mat[3,1:3] <- c("a + c","b + d","10000")
+colnames(mat) <- c("Test2 reject","Test2 accpet","Row total")
+rownames(mat) <- c("Test1 reject","Test1 accpet","Column total")
+kable(mat)
+```
+从模拟得到两种检验方法的势可知$a+b=6510, a+c=6760$，对于McNemar test，其检验统计量$\chi ^2 = \frac{(b-c)^2}{b+c}$在$H_0$成立的情况下近似服从$\chi ^2(1)$。因此为计算检验统计量$\chi ^2$，**我们还需要知道的最少信息为$a$的值，即共有多少次试验Test1和Test2同时拒绝了原假设$H_0$。**
+
+最后若$\chi ^2>\chi ^2(0.95)$，则可认为两种检验方法的势在显著性水平0.05下是不同的。
+
+
+## A-21003-2021-10-21
+
+## Question
+Exercises 6.C (pages 182, Statistical Computing with R).
+
+
+## Answer
+
+### 6.C
+
+首先仿照**Example 6.8**，对Mardia多元偏度检验估计其第I类错误概率。由题知多元偏度统计量定义为
+$$
+b_{1, d}=\frac{1}{n^{2}} \sum_{i, j=1}^{n}\left(\left(X_{i}-\bar{X}\right)^{T} \widehat{\Sigma}^{-1}\left(X_{j}-\bar{X}\right)\right)^{3}
+$$
+且$nb_{1, d}/6$的渐近分布为$\chi^2(d(d+1)(d+2)/6)$，当$nb_{1, d}/6>\chi^2_{d(d+1)(d+2)/6}(1-\alpha)$时拒绝$H_0:\beta_{1, d}=0$。下面仿照Example 6.8，取显著性水平$\alpha=0.05$，样本容量$n=10, 20, 30, 50, 100, 500$。由于统计量渐近分布不依赖于样本的均值和方差，故样本可由标准多元正态分布$N_d(0, I_d)$生成，此处取维数$d=2$。则对Mardia多元偏度检验，估计第I类错误概率的R代码如下所示
+```{r}
+library(knitr)
+library(MASS)
+
+#计算多元偏度统计量的函数
+mvsk <- function(x){
+  xx <- scale(x, center=T, scale=F)#将样本矩阵x中心化
+  n <- nrow(x)#获取样本量
+  sk <- 1/n^2 * sum((xx %*% solve(cov(x)) %*% t(xx))^3)#检验统计量
+  return(sk)
+}
+
+ns <- c(10, 20, 30, 50, 100, 500)#样本量
+d <- 2#维数
+alpha <- 0.05#显著性水平
+cv <- qchisq(1-alpha, d*(d+1)*(d+2)/6)#检验临界值
+
+p.reject <- numeric(length(ns))#存储第I类错误估计值
+m <- 1e4#模拟次数
+set.seed(99)
+# for(i in 1:length(ns)){
+#   mvsktests <- numeric(m)#存储每次试验的检验结果
+#   for(j in 1:m){
+#     x <- mvrnorm(ns[i], mu = rep(0, d), Sigma = diag(d))#生成n个多元正态分布样本，维数为2
+#     mvsktests[j] <- as.integer(ns[i]*mvsk(x)/6 >= cv)#拒绝H0取1，否则取0
+#   }
+#   p.reject[i] <- mean(mvsktests)#拒绝H0的比例
+# }
+# 
+# #绘制结果表格
+# result <- matrix(c(ns, p.reject), nrow = 2, ncol = length(ns), byrow = T)
+# dimnames(result)[[1]] <- c("n", "Type I error rate")
+# kable(result, caption = "表1：Mardia多元偏度检验第I类错误概率估计")
+
+```
+从表1可以看到，当样本量较小时（$n\leq50$），多元偏度统计量的渐近分布拟合效果欠佳，估计值与真实显著性水平$\alpha=0.05$差距较大。而当样本量较大时，多元偏度统计量的渐近分布拟合效果逐渐变好，估计值逐渐接近真实显著性水平$\alpha=0.05$。
+
+\
+下面仿照**Example 6.10**，在受污染的多元正态总体（混合正态）下，模拟估计Mardia多元偏度检验的势。其中受污染的多元正态分布定义为
+$$
+(1-\varepsilon) N_d\left(0, I_d\right)+\varepsilon N_d\left(0, 100I_d\right), \quad 0 \leq \varepsilon \leq 1
+$$
+当$\varepsilon=0$或$\varepsilon=1$时该分布为多元正态分布，但$0 < \varepsilon < 1$时不是多元正态分布。我们可以取一列$\varepsilon$估计Mardia多元偏度检验的势，并绘制出相应的势曲线。类似于Example 6.10，此次模拟取显著性水平$\alpha=0.1$。多元偏度统计量的计算仍沿用函数`mvsk`。则估计Mardia多元偏度检验势的R代码如下所示
+```{r, fig.cap="图1：在受污染的多元正态总体下，Mardia多元偏度检验势的估计"}
+alpha <- 0.1#显著性水平
+n <- 500#样本量
+m <- 2500#模拟次数
+d <- 2#维数
+epsilon <- c(seq(0, 0.15, 0.01), seq(0.15, 1, 0.05))#混合分布比例序列e
+N <- length(epsilon)
+pwr <- numeric(N)#存储每次模拟检验的势
+cv <- qchisq(1-alpha, d*(d+1)*(d+2)/6)#检验临界值
+
+set.seed(100)
+# for(i in 1:N){ #对每个epsilon
+#   mvsktests <- numeric(m)#存储每次试验结果，拒绝H0取1，否则取0
+#   e <- epsilon[i]#混合分布比例e
+#   for(j in 1:m){ #对每次试验
+#     x1 <- mvrnorm(n, rep(0, d), diag(d))#生成多元正态样本N(0, I)
+#     x2 <- mvrnorm(n, rep(0, d), 100*diag(d))#生成多元正态样本N(0, 100*I)
+#     emat <- diag(as.integer(runif(n) <= e))#为生成混合分布构造系数矩阵，对角线元素以概率e取1，以概率1-e取0
+#     x <- (diag(n)-emat) %*% x1 + emat %*% x2#生成混合分布样本，每行以概率1-e取N(0, I)，以概率e取N(0, 100*I)
+#     mvsktests[j] <- as.integer(n*mvsk(x)/6 >= cv)#检验结果拒绝H0取1，否则取0
+#   }
+#   pwr[i] <- mean(mvsktests)#估计检验的势
+# }
+# 
+# #绘制power vs epsilon曲线
+# plot(epsilon, pwr, type = "b",
+#      xlab = bquote(epsilon), ylim = c(0,1))
+# abline(h = alpha, lty = 3)
+# se <- sqrt(pwr * (1-pwr) / m) #添加标准差
+# lines(epsilon, pwr+se, lty = 3)
+# lines(epsilon, pwr-se, lty = 3)
+```
+从图1可以看到，当$\varepsilon=0,1$时，检验的势曲线与水平线$\alpha=0.1$相交，说明样本服从多元正态分布；而当$0 < \varepsilon < 1$时，检验的势大于真实值0.1，并且随$\varepsilon$的增加先增加后逐渐减小，说明此时样本不服从多元正态分布。
+
+
+## A-21003-2021-10-28
+
+## Question
+Exercises 7.7, 7.8, 7.9 and 7.B (pages 213, Statistical Computing with R).
+
+
+## Answer
+
+### 7.7
+
+根据题意,对数据集`scor`我们感兴趣的参数为
+$$
+\theta=\frac{\lambda_{1}}{\sum_{j=1}^{5} \lambda_{j}}
+$$
+其中$\lambda_{1}>\cdots>\lambda_{5}$为协方差矩阵$\Sigma$的特征值。下面计算$\theta$的样本估计$\hat{\theta}$，并利用bootstrap估计$\hat{\theta}$的偏差和标准差。
+```{r}
+library(knitr)
+library(bootstrap)
+library(boot)
+
+Sigma <- cov(scor)#计算协方差矩阵的MLE
+lambda_hat <- eigen(Sigma)$values#特征值
+theta_hat <- lambda_hat[1]/sum(lambda_hat)#theta的样本估计
+
+#计算theta bootstrap估计的函数，以传给boot的参数statistic
+theta_i <- function(dat, inds){
+  Sigma <- cov(dat[inds,])
+  lambda <- eigen(Sigma)$values
+  return(lambda[1]/sum(lambda))
+}
+
+set.seed(77)
+obj_boot <- boot(data=scor, statistic=theta_i, R=200)#利用boot进行bootstrap抽样
+theta_boot <- as.numeric(obj_boot$t)#bootstrap估计值
+bias_boot <- mean(theta_boot) - theta_hat#bootstrap的偏差估计
+se_boot <- sd(theta_boot)#bootstrap的标准差估计
+
+#绘制结果表格
+result <- matrix(c(theta_hat, bias_boot, se_boot), nrow = 1)
+dimnames(result)[[2]] <- c("theta_hat", "bias_boot", "se_boot")
+kable(result, caption = "表1.1：theta的样本估计和bootstrap的偏差和标准差估计结果")
+```
+
+
+### 7.8
+
+接题7.7，下面利用jackknife估计$\hat{\theta}$的偏差和标准差。
+```{r}
+Sigma <- cov(scor)#计算协方差矩阵的MLE
+lambda_hat <- eigen(Sigma)$values#特征值
+theta_hat <- lambda_hat[1]/sum(lambda_hat)#theta的样本估计
+
+n <- nrow(scor)
+theta_jack <- numeric(n)
+for(i in 1:n){
+  dat <- scor[-i,]
+  Sigma <- cov(dat)
+  lambda <- eigen(Sigma)$values
+  theta_jack[i] <- lambda[1]/sum(lambda)
+}
+bias_jack <- (n-1)*(mean(theta_jack) - theta_hat)
+se_jack <- (n-1)*sqrt(var(theta_jack)/n)
+
+#绘制结果表格
+result <- matrix(c(bias_jack, se_jack), nrow = 1)
+dimnames(result)[[2]] <- c("bias_jack", "se_jack")
+kable(result, caption = "表2.1：jackknife的偏差和标准差估计结果")
+```
+
+
+### 7.9
+
+接题7.7，下面利用`boot.ci`函数计算$\hat{\theta}$的95% percentile和BCa置信区间。
+```{r}
+set.seed(79)
+obj_boot <- boot(data=scor, statistic=theta_i, R=2000)#利用boot函数进行bootstrap抽样
+boot.ci(obj_boot, type = c("perc", "bca"))#利用boot.ci函数计算95% percentile和BCa置信区间
+```
+从上述结果可以看到，percentile方法和BCa方法得到的95%置信区间非常接近，说明在本题情况下两种方法都较为稳健。
+
+
+### 7.B
+
+下面利用Monte Carlo模拟，对偏度分别估计(i)standard normal bootstrap置信区间，(ii)basic bootstrap置信区间，(iii)percentile置信区间的覆盖概率，并在上述置信区间不包含待估参数（偏度）时，分别统计待估参数位于上述三种置信区间左边（miss on the left）和右边（miss on the right）的比例。其中偏度定义为
+$$
+\sqrt{\beta_{1}}=\frac{E\left[\left(X-\mu_{X}\right)\right]^{3}}{\sigma_{X}^{3}}
+$$
+相应的样本偏度定义为
+$$
+\sqrt{b_{1}}=\frac{\frac{1}{n} \sum_{i=1}^{n}\left(X_{i}-\bar{X}\right)^{3}}{\left(\frac{1}{n} \sum_{i=1}^{n}\left(X_{i}-\bar{X}\right)^{2}\right)^{3 / 2}}
+$$
+
+- 样本来自正态总体$N(0,1)$时，可以计算其偏度为0
+```{r}
+#计算样本偏度
+sk_i <- function(dat, inds){
+  x <- dat[inds]
+  xbar <- mean(x)
+  m3 <- mean((x - xbar)^3)
+  m2 <- mean((x - xbar)^2)
+  sk <- m3 / m2^(3/2)
+  return(sk)
+}
+
+alpha <- 0.05#显著性水平
+n <- 200#样本量
+m <- 5e3#MC模拟次数
+sk <- 0#正态分布偏度系数
+y <- matrix(nrow = m, ncol = 3)#存储CI是否覆盖参数
+CI_miss <- matrix(nrow = m, ncol = 6)#存储CI位置，1-3列为参数是否落在3种CI左边，4-6列为参数是否落在3种CI右边
+
+set.seed(0)
+# for(i in 1:m){
+#   x <- rnorm(n)#生成正态样本
+#   obj_boot <- boot(data = x, statistic = sk_i, R=2000)#利用boot函数进行bootstrap抽样
+#   obj_ci <- boot.ci(obj_boot, conf = 1-alpha, type = c("norm","basic", "perc"))#利用boot.ci函数计算95%置信区间
+#   LCLs <- c(obj_ci[["normal"]][1,2], obj_ci[["basic"]][1,4], obj_ci[["percent"]][1,4])#置信区间下界
+#   UCLs <- c(obj_ci[["normal"]][1,3], obj_ci[["basic"]][1,5], obj_ci[["percent"]][1,5])#置信区间上界
+#   y[i,] <- as.integer(sk > LCLs & sk < UCLs)#CI是否覆盖参数
+#   CI_miss[i,] <- as.integer(c(sk < LCLs, sk > UCLs))#CI位置，1-3列为参数是否落在3种CI左边，4-6列为参数是否落在3种CI右边
+# }
+# 
+# #绘制结果表格
+# cp <- apply(y, 2, mean)
+# cp <- matrix(cp, nrow = 1)
+# dimnames(cp)[[2]] <- c("standard normal bootstrap", "basic bootstrap", "percentile")
+# kable(cp, caption = "表4.1：三种bootstrap置信区间覆盖概率的MC估计（正态样本）")
+# 
+# CI_left <- apply(CI_miss[,1:3], 2, mean)
+# CI_right <- apply(CI_miss[,4:6], 2, mean)
+# miss_prop <- rbind(CI_left, CI_right)
+# dimnames(miss_prop)[[2]] <- c("standard normal bootstrap", "basic bootstrap", "percentile")
+# kable(miss_prop, caption = "表4.2：偏度位于三种bootstrap置信区间左边/右边的比例（正态样本）")
+
+```
+
+- 样本来自卡方总体$\chi^2(5)$时，可以计算其偏度为$\sqrt{8/5}$
+```{r}
+n <- 200#样本量
+m <- 5e3#MC模拟次数
+sk <- sqrt(8/5)#卡方分布chi^2(5)偏度系数
+y <- matrix(nrow = m, ncol = 3)#存储CI是否覆盖参数
+CI_miss <- matrix(nrow = m, ncol = 6)#存储CI位置，1-3列为参数是否落在3种CI左边，4-6列为参数是否落在3种CI右边
+
+set.seed(0)
+# for(i in 1:m){
+#   x <- rchisq(n, 5)#生成卡方样本
+#   obj_boot <- boot(data = x, statistic = sk_i, R=2000)#利用boot函数进行bootstrap抽样
+#   obj_ci <- boot.ci(obj_boot, conf = 1-alpha, type = c("norm","basic", "perc"))#利用boot.ci函数计算95%置信区间
+#   LCLs <- c(obj_ci[["normal"]][1,2], obj_ci[["basic"]][1,4], obj_ci[["percent"]][1,4])#置信区间下界
+#   UCLs <- c(obj_ci[["normal"]][1,3], obj_ci[["basic"]][1,5], obj_ci[["percent"]][1,5])#置信区间上界
+#   y[i,] <- as.integer(sk > LCLs & sk < UCLs)#CI是否覆盖参数
+#   CI_miss[i,] <- as.integer(c(sk < LCLs, sk > UCLs))#CI位置，1-3列为参数是否落在3种CI左边，4-6列为参数是否落在3种CI右边
+# }
+# 
+# #绘制结果表格
+# cp <- apply(y, 2, mean)
+# cp <- matrix(cp, nrow = 1)
+# dimnames(cp)[[2]] <- c("standard normal bootstrap", "basic bootstrap", "percentile")
+# kable(cp, caption = "表4.3：三种bootstrap置信区间覆盖概率的MC估计（卡方样本）")
+# 
+# CI_left <- apply(CI_miss[,1:3], 2, mean)
+# CI_right <- apply(CI_miss[,4:6], 2, mean)
+# miss_prop <- rbind(CI_left, CI_right)
+# dimnames(miss_prop)[[2]] <- c("standard normal bootstrap", "basic bootstrap", "percentile")
+# kable(miss_prop, caption = "表4.4：偏度位于三种bootstrap置信区间左边/右边的比例（卡方样本）")
+
+```
+从表4.1和表4.3可以看到，正态分布样本相比卡方分布样本，三种bootstrap置信区间的覆盖概率均较高且接近于理论值95%。
+
+从表4.2和表4.4可以看到，当样本来自正态分布时，偏度系数位于bootstrap置信区间左边（miss on the left）和右边（miss on the right）的比例基本相同，说明正态分布是无偏的（偏度为0）；而当样本来自卡方分布时，偏度系数位于bootstrap置信区间右边（miss on the right）大于左边（miss on the left）的比例，说明卡方分布具有正的偏度。
+
+
+## A-21003-2021-11-04
+
+## Question
+Exercises 8.2 (pages 242, Statistical Computing with R).
+
+Discussion：Design experiments for evaluating the performance of the NN, energy, and ball methods in various situations.
+
+
+## Answer
+
+### 8.2
+
+对数据集`iris`，探究鸢尾属植物Iris Setosa的（花瓣长度，花瓣宽度）和（花萼长度，花萼宽度）对应的二元分布是否相互独立。以permutation test的方式应用二元Spearman秩相关检验。
+```{r}
+library(knitr)
+library(boot)
+
+data("iris")
+setosa <- as.matrix(iris[1:50, -5])
+x <- setosa[,1:2]#sepal
+y <- setosa[,3:4]#petal
+
+#计算rho permutation估计的函数，以传给boot的参数statistic
+rho_i <- function(dat, inds){
+  x <- dat[,1:2]
+  y <- dat[inds, 3:4]
+  rho <- cor.test(x, y, method = "spearman")$estimate
+  return(rho)
+}
+
+set.seed(802)
+obj_boot <- boot(data=setosa, statistic=rho_i, sim="permutation", R=999)#permutation
+rho_perm <- c(obj_boot$t, obj_boot$t0)
+phat <- mean(rho_perm > obj_boot$t0)#显著性水平的permutation估计
+phat
+
+```
+permutation得到的显著性水平为0.005，则在$\alpha=0.05$下拒绝原假设（二者独立）。而利用`cor.test`得到的检验结果p值为
+```{r}
+cor.test(x, y, method = "spearman")$p.value
+```
+可以看到，利用`cor.test`的检验结果与permutation相同，都拒绝了原假设。
+
+
+### Discussion
+
+Design experiments for evaluating the performance of the NN, energy, and ball methods in various situations.
+
+(1) Unequal variances and equal expectations
+```{r}
+# library(RANN)
+# library(energy)
+# library(Ball)
+
+# #NN统计量
+# Tn <- function(dat, inds, sizes, k){
+#   n1 <- sizes[1]
+#   n2 <- sizes[2]
+#   n <- n1 + n2
+#   if(is.vector(dat)) 
+#     dat <- data.frame(dat)
+#   dat <- dat[inds, ]
+#   NN <- nn2(data=dat, k=k+1)
+#   block1 <- NN$nn.idx[1:n1,-1]
+#   block2 <- NN$nn.idx[(n1+1):n,-1]
+#   i1 <- sum(block1 <= n1)
+#   i2 <- sum(block2 > n1)
+#   return((i1 + i2) / (k * n))
+# }
+# 
+# #NN假设检验
+# eqdist.nn <- function(dat, sizes, k){
+#   obj_boot <- boot(data=dat, statistic=Tn, R=R, sim = "permutation", sizes = sizes, k=k)
+#   ts <- c(obj_boot$t0, obj_boot$t)
+#   p.value <- mean(ts>=ts[1])
+#   return(list(statistic=ts[1], p.value=p.value))
+# }
+# 
+# m <- 1000#模拟次数
+# d <- 2#维数
+# k <- 3#NN检验参数取3
+# n1 <- n2 <- 50#样本量
+# R <- 999#permutation个数
+# n <- n1 + n2
+# N <- c(n1, n2)
+# p.values <- matrix(nrow = m, ncol = 3)#存储每次模拟p值
+# alpha <- 0.05
+# 
+# #Unequal variances and equal expectations
+# sigma <- 1.5
+# set.seed(11041)
+# for(i in 1:m){
+#   x <- matrix(rnorm(n1*d, 0, 1), ncol = d)
+#   y <- matrix(rnorm(n2*d, 0, sigma), ncol = d)
+#   dat <- rbind(x, y)
+#   p.values[i, 1] <- eqdist.nn(dat, N, k)$p.value#NN
+#   p.values[i, 2] <- eqdist.etest(dat, sizes = N, R=R)$p.value#energy
+#   p.values[i, 3] <- bd.test(x=x, y=y, num.permutations = R, seed = i*11041)$p.value#ball
+# }
+# pow <- matrix(colMeans(p.values < alpha), ncol = 3)#模拟得到三种检验的势
+# dimnames(pow)[[2]] <- c("NN", "energy", "ball")
+# kable(pow, caption = "表2.1：NN, energy和ball三种检验方法的势(Unequal variances and equal expectations)")
+```
+从表2.1可以看到，当正态分布均值相同而方差不同时，ball相比NN和energy检验表现更好。
+
+(2) Unequal variances and unequal expectations
+```{r}
+mu <- 0.5
+sigma <- 1.5
+p.values <- matrix(nrow = m, ncol = 3)#存储每次模拟p值
+set.seed(11042)
+# for(i in 1:m){
+#   x <- matrix(rnorm(n1*d, 0, 1), ncol = d)
+#   y <- matrix(rnorm(n2*d, mu, sigma), ncol = d)#Unequal variances and unequal expectations
+#   dat <- rbind(x, y)
+#   p.values[i, 1] <- eqdist.nn(dat, N, k)$p.value#NN
+#   p.values[i, 2] <- eqdist.etest(dat, sizes = N, R=R)$p.value#energy
+#   p.values[i, 3] <- bd.test(x=x, y=y, num.permutations = R, seed = i*11041)$p.value#ball
+# }
+# pow <- matrix(colMeans(p.values < alpha), ncol = 3)#模拟得到三种检验的势
+# dimnames(pow)[[2]] <- c("NN", "energy", "ball")
+# kable(pow, caption = "表2.2：NN, energy和ball三种检验方法的势(Unequal variances and unequal expectations)")
+```
+从表2.2可以看到，当正态分布均值和方差都不相等时，ball相比NN和energy检验表现更好。
+
+(3) Non-normal distributions: t distribution with 1 df (heavy-tailed distribution), bimodel distribution (mixture of two normal distributions)
+```{r}
+#生成bimodel distribution随机数
+rbinorm <- function(n, mu=2, sigma=2){
+  x <- numeric(n)
+  u <- runif(n)
+  inds <- which(u < 0.5)
+  x[inds] <- rnorm(sum(u < 0.5))
+  x[-inds] <- rnorm(n - sum(u < 0.5), mu, sigma)
+  return(x)
+}
+
+p.values <- matrix(nrow = m, ncol = 3)#存储每次模拟p值
+set.seed(11043)
+# for(i in 1:m){
+#   x <- rt(n1, df=1)#t distribution
+#   y <- rbinorm(n2)#bimodel distribution
+#   dat <- c(x, y)
+#   p.values[i, 1] <- eqdist.nn(dat, N, k)$p.value#NN
+#   p.values[i, 2] <- eqdist.etest(dat, sizes = N, R=R)$p.value#energy
+#   p.values[i, 3] <- bd.test(x=x, y=y, num.permutations = R, seed = i*11041)$p.value#ball
+# }
+# pow <- matrix(colMeans(p.values < alpha), ncol = 3)#模拟得到三种检验的势
+# dimnames(pow)[[2]] <- c("NN", "energy", "ball")
+# kable(pow, caption = "表2.3：NN, energy和ball三种检验方法的势(Non-normal distributions)")
+# ```
+# 从表2.3可以看到，对于非正态分布情形，energy相比NN和ball检验表现更好。
+# 
+# (4) Unbalanced samples (say, 1 case versus 10 controls)
+# ```{r}
+# n1 <- 10
+# n2 <- 10 * n1#Unbalanced samples
+# n <- n1 + n2
+# N <- c(n1, n2)
+# mu <- 0.5
+# p.values <- matrix(nrow = m, ncol = 3)#存储每次模拟p值
+# set.seed(11044)
+# for(i in 1:m){
+#   x <- rnorm(n1, 0, 1)
+#   y <- rnorm(n2, mu, 1)
+#   dat <- c(x, y)
+#   p.values[i, 1] <- eqdist.nn(dat, N, k)$p.value#NN
+#   p.values[i, 2] <- eqdist.etest(dat, sizes = N, R=R)$p.value#energy
+#   p.values[i, 3] <- bd.test(x=x, y=y, num.permutations = R, seed = i*11041)$p.value#ball
+# }
+# pow <- matrix(colMeans(p.values < alpha), ncol = 3)#模拟得到三种检验的势
+# dimnames(pow)[[2]] <- c("NN", "energy", "ball")
+# kable(pow, caption = "表2.4：NN, energy和ball三种检验方法的势(Unbalanced samples)")
+```
+从表2.4可以看到，对于类别不平衡情形，energy相比NN和ball检验表现更好。
+
+
+## A-21003-2021-11-11
+
+## Question
+Exercises 9.3 and 9.8 (pages 277-278, Statistical Computing with R).
+
+For each of the above exercise, use the Gelman-Rubin method to monitor convergence of the chain, and run the chain until it converges approximately to the target distribution according to $\hat{R}<1.2$.
+
+
+## Answer
+
+### 9.3
+
+选取proposal distribution为标准正态分布$N(X_t, \sigma^2)$，其与目标分布$Cauchy(1,0)$具有相同支撑，通常能够满足正则条件。则利用Metropolis-Hastings sampler生成标准柯西分布随机数的R代码如下所示
+```{r}
+#柯西分布密度
+f <- function(x){
+  fx <- 1 / (pi*(1+x^2))
+  return(fx)
+}
+
+set.seed(1193)
+m <- 1e4
+x <- numeric(m)
+x[1] <- rnorm(1)
+k <- 0#记录拒绝次数
+u <- runif(m)
+
+#生成马氏链
+for(i in 2:m){
+  xt <- x[i-1]
+  y <- rnorm(1, xt, 1)
+  num <- f(y) * dnorm(xt, y, 1)
+  den <- f(xt) * dnorm(y, xt, 1)
+  r <- num / den
+  if(u[i] <= r){
+    x[i] <- y
+  }else{
+    x[i] <- xt
+    k <- k+1
+  }
+}
+
+#比较MH和真实柯西分布的分位数
+index <- c(1001:m)
+yMH <- x[index]
+ps <- seq(0.1, 0.9, 0.1)
+result <- rbind(quantile(yMH, ps), qcauchy(ps))#绘制结果表格
+dimnames(result)[[1]] <- c("Metropolis-Hastings", "True")
+kable(result, caption = "表1.1：分位数对比结果")
+
+```
+从表1.1可以看到，利用Metropolis-Hastings sampler生成的柯西分布与真实柯西分布二者分位数较为接近。
+
+### 9.8
+
+由题知该二元密度$f(x,y),\quad x=0,1,...,n,0\leq y\leq 1$的条件分布分别为$Binomial(n,y)$和$Beta(x+a, n-x+b)$。则可以利用Gibbs sampler生成该二元密度的随机数，R代码如下所示
+```{r, fig.cap="图2.1：Gibbs sampler生成的二元随机数"}
+#Gibbs sampler function, 固定n=10, a=1, b=2
+Gibbs <- function(N, x0, y0, n=10, a=1, b=2){
+  X <- matrix(nrow = N, ncol = 2)
+  
+  #初始化
+  x <- x0
+  y <- y0
+  X[1,] <- c(x, y)
+  
+  for(i in 2:N){
+    y <- X[i-1, 2]
+    X[i, 1] <- rbinom(1, n, y)#x|y为Binomial(n,y)
+    x <- X[i, 1]
+    X[i, 2] <- rbeta(1, x+a, n-x+b)#y|x为Beta(x+a, n-x+b)
+  }
+  return(X)
+}
+
+set.seed(1198)
+n <- 10
+a <- 1
+b <- 2
+N <- 5000
+x0 <- 0.5*n
+y0 <- (x0+a) / (n+a+b)#初始化
+X <- Gibbs(N, x0, y0)
+burn <- 1000
+XGibbs <- X[(burn+1):N,]
+#plot(XGibbs, cex=0.5, xlab="x", ylab="y")#XY散点图
+```
+从上图可以看到，显然$X$为离散分布，$Y$为连续分布且均值随$X$增大而增大，其特征与真实分布相符合。
+
+### Discussion
+
+For each of the above exercise, use the Gelman-Rubin method to monitor convergence of the chain, and run the chain until it converges approximately to the target distribution according to $\hat{R}<1.2$.
+
+- **exercise 9.3**
+
+对Metropolis-Hastings sampler生成的柯西分布利用Gelman-Rubin方法观测收敛性，其中Gelman-Rubin函数沿用书中样例。取number of chains=4， length of chains=15000。
+```{r}
+#生成柯西分布马氏链
+cauchy.chain <- function(x0, m){
+  x <- numeric(m)
+  x[1] <- x0
+  k <- 0#记录拒绝次数
+  u <- runif(m)
+  
+  #生成马氏链
+  for(i in 2:m){
+    xt <- x[i-1]
+    y <- rnorm(1, xt, 1)
+    num <- dcauchy(y) * dnorm(xt, y, 1)
+    den <- dcauchy(xt) * dnorm(y, xt, 1)
+    r <- num / den
+    if(u[i] <= r){
+      x[i] <- y
+    }else{
+      x[i] <- xt
+      k <- k+1
+    }
+  }
+  
+  return(x)
+}
+
+#Gelman-Rubin方法计算Rhat
+Gelman.Rubin <- function(psi){
+  # psi[i,j] is the statistic psi(X[i,1:j]) for chain in i-th row of X
+  psi <- as.matrix(psi)
+  n <- ncol(psi)
+  k <- nrow(psi)
+
+  psi.means <- rowMeans(psi)     #row means
+  B <- n * var(psi.means)        #between variance est.
+  psi.w <- apply(psi, 1, "var")  #within variances
+  W <- mean(psi.w)               #within est.
+  v.hat <- W*(n-1)/n + (B/n)     #upper variance est.
+  r.hat <- v.hat / W             #G-R statistic
+  return(r.hat)
+}
+
+set.seed(113)
+k <- 4#chain的个数
+m <- 15000#chain的长度
+burn <- 1000
+x0 <- c(-10, -5, 5, 10)#初始值
+
+# X <- matrix(nrow = k, ncol = m)
+# for(i in 1:k)
+#   X[i,] <- cauchy.chain(x0[i], m)
+# 
+# #计算检验统计量psi
+# psi <- t(apply(X, 1, cumsum))
+# for(i in 1:nrow(psi))
+#   psi[i,] <- psi[i,] / (1:ncol(psi))
+# 
+# #绘制psi
+# par(mfrow=c(2, 2))
+# for(i in 1:k)
+#   plot(psi[i, (burn+1):m], type="l", xlab=i, ylab=bquote(psi))
+# 
+# #绘制Rhat
+# par(mfrow=c(1, 1))
+# rhat <- numeric(m)
+# for(j in (burn+1):m)
+#   rhat[j] <- Gelman.Rubin(psi[,1:j])
+# plot(rhat[(burn+1):m], type="l", xlab="", ylab="R")
+# abline(h=1.2, lty=2)
+
+```
+
+可以看到$\hat{R}$约在2500次迭代后收敛到目标值$1.2$。
+
+- **exercise 9.8**
+
+对Gibbs sampler所生成$(X,Y)$的边缘分布分别利用Gelman-Rubin方法观测其收敛性。取number of chains=3， length of chains=15000，与exercise 9.8相同固定参数$n=10, a=1, b=2$。
+```{r}
+set.seed(98)
+k <- 3#chain的个数
+m <- 15000#chain的长度
+burn <- 1000
+n <- 10
+a <- 1
+b <- 2
+x0 <- c(0, 5, 10)#初始值
+y0 <- (x0+a) / (n+a+b)#初始化
+
+X <- matrix(nrow = k, ncol = m)
+Y <- matrix(nrow = k, ncol = m)
+# for(i in 1:k){
+#   XY <- t(Gibbs(m, x0[i], y0[i]))
+#   X[i,] <- XY[1,]
+#   Y[i,] <- XY[2,]
+# }
+  
+#对X的边缘分布利用Gelman-Rubin方法观测收敛性
+#计算检验统计量psi
+psi <- t(apply(X, 1, cumsum))
+for(i in 1:nrow(psi))
+  psi[i,] <- psi[i,] / (1:ncol(psi))
+
+#绘制psi
+# par(mfrow=c(2, 2))
+# for(i in 1:k)
+#   plot(psi[i, (burn+1):m], type="l", xlab=i, ylab=bquote(psi))
+```
+
+
+```{r}
+# #绘制Rhat
+# par(mfrow=c(1, 1))
+# rhat <- numeric(m)
+# for(j in (burn+1):m)
+#   rhat[j] <- Gelman.Rubin(psi[,1:j])
+# plot(rhat[(burn+1):m], type="l", xlab="", ylab="R")
+# abline(h=1.2, lty=2)
+```
+
+可以看到对于$X$的边缘分布，$\hat{R}$约在3100次迭代后收敛到目标值$1.2$。
+
+```{r}
+# #对Y的边缘分布利用Gelman-Rubin方法观测收敛性
+# #计算检验统计量psi
+# psi <- t(apply(Y, 1, cumsum))
+# for(i in 1:nrow(psi))
+#   psi[i,] <- psi[i,] / (1:ncol(psi))
+# 
+# #绘制psi
+# par(mfrow=c(2, 2))
+# for(i in 1:k)
+#   plot(psi[i, (burn+1):m], type="l", xlab=i, ylab=bquote(psi))
+```
+
+
+```{r}
+# #绘制Rhat
+# par(mfrow=c(1, 1))
+# rhat <- numeric(m)
+# for(j in (burn+1):m)
+#   rhat[j] <- Gelman.Rubin(psi[,1:j])
+# plot(rhat[(burn+1):m], type="l", xlab="", ylab="R")
+# abline(h=1.2, lty=2)
+```
+
+可以看到对于$Y$的边缘分布，$\hat{R}$约在2600次迭代后收敛到目标值$1.2$。
+
+
+## A-21003-2021-11-18
+
+## Question
+Exercises 11.3 and 11.5 (pages 353-354, Statistical Computing with R).
+
+Suppose $T_1, ...,T_n$ are i.i.d. samples drawn from the exponential distribution with expectation $\lambda$. Those values greater than $\tau$ are not observed due to right censorship, so that the observed values are $Y_i=T_iI(T_i \leq \tau) + \tau I(T_i>\tau),\quad i=1,...,n$. Suppose $\tau = 1$ and the observed $Y_i$ values are as follows:
+$$0.54, 0.48, 0.33, 0.43, 1.00, 1.00, 0.91, 1.00, 0.21, 0.85$$
+Use the E-M algorithm to estimate $\lambda$, compare your result with the observed data MLE (note:$Y_i$ follows a mixture distribution).
+
+
+## Answer
+
+### 11.3
+
+(a)首先计算该级数的第$k$项，为防止$k$过大时溢出利用先取对数再求指数的方式计算
+```{r}
+Termk <- function(a, k){
+  d <- length(a)
+  return(
+    (-1)^k * gamma((d+1)/2) / ((2*k+1)*(2*k+2)) * exp(-lgamma(k+1) - k*log(2) + (2*k+2)*log(norm(a, type = "2")) + lgamma(k+3/2) - lgamma(k+d/2+1))
+  )
+}
+```
+(b)进一步利用向量化运算求和
+```{r}
+SumTerm <- function(a){
+  K <- c(0:200)#求和至k=200
+  return(sum(Termk(a, K)))
+}
+```
+(c)当$a=(1, 2)^T$时级数和
+```{r}
+a <- c(1, 2)
+SumTerm(a)
+```
+结果约为1.53。
+
+### 11.5
+
+首先求解Exercise 11.5
+```{r}
+ck <- function(a, k){
+  sqrt((a^2*k) / (k+1-a^2))
+}#积分限
+
+g <- function(u, k){
+  (1 + u^2/k)^(-(k+1)/2)
+}#被积函数
+
+intg <- function(ck, k){
+  integrate(g, lower = 0, upper = ck, 
+            k = k)
+}#积分项
+
+bk <- function(k){
+  2/sqrt(pi*k)*exp(lgamma((k+1)/2) - lgamma(k/2))
+}#常数项
+
+f <- function(a, k){
+  bk(k)*intg(ck(a, k), k)$value - bk(k-1)*intg(ck(a, k-1), k-1)$value
+}#转化为求f(a ,k)=0
+
+#求根
+eps <- .Machine$double.eps^0.25
+root_115 <- function(k){
+  uniroot(f, interval = c(eps, 2), k=k)$root
+}
+
+```
+计算Exercise 11.4中的$A(k)$
+```{r}
+S <- function(a,k){
+  pt(q=sqrt(a^2*k / (k+1-a^2)), df=k, lower.tail = F)
+}
+
+obj <- function(a, k){
+  S(a, k) - S(a, k-1)
+}
+
+root_114 <- function(k){
+  uniroot(obj, interval = c(eps, 2), k=k)$root
+}
+```
+取$k=4:25, 100, 500, 1000$对比二者的解
+```{r}
+ks <- c(4:25, 100, 500, 1000)
+result <- matrix(nrow = length(ks), ncol = 3)
+result[,1] <- ks
+for(i in 1:length(ks)){
+  result[i, 2:3] <- c(root_115(ks[i]), root_114(ks[i]))
+}
+dimnames(result)[[2]] <- c("k", "ex11.5", "ex11.4")
+kable(result, caption = "表2.1：ex11.5与ex11.4求根结果对比")
+```
+从表2.1可以看到，二者求解结果是一致的。
+
+
+### Discussion
+
+Suppose $T_1, ...,T_n$ are i.i.d. samples drawn from the exponential distribution with expectation $\lambda$. Those values greater than $\tau$ are not observed due to right censorship, so that the observed values are $Y_i=T_iI(T_i \leq \tau) + \tau I(T_i>\tau),\quad i=1,...,n$. Suppose $\tau = 1$ and the observed $Y_i$ values are as follows:
+$$0.54, 0.48, 0.33, 0.43, 1.00, 1.00, 0.91, 1.00, 0.21, 0.85$$
+Use the E-M algorithm to estimate $\lambda$, compare your result with the observed data MLE (note:$Y_i$ follows a mixture distribution).
+
+
+**solution:** We know that $Y_i=T_iI(T_i \leq \tau) + \tau I(T_i>\tau)$在$\tau$follows a mixture distribution. When $T_i \leq \tau$, $Y_i \sim \operatorname{Exp}(\frac{1}{\lambda})$, when$T_i>\tau$, $Y_i=\tau$and $P(Y_i=\tau)=e^{-\frac{\tau}{\lambda}}$, denote $n_{\tau}$ the number of those values greater than $\tau$, then the observed data likelihood can be expressed as
+$$L(\lambda|n_{\tau})=\prod_{i=1}^{n-n_{\tau}} \frac{1}{\lambda} e^ {-\frac{y_i}{\lambda}}\prod_{i=1}^{n_{\tau}}e^{-\frac{\tau}{\lambda}}=\frac{1}{\lambda^{n-n_\tau}}e^{-\frac{\sum_{i=1}^{n} y_i}{\lambda}},$$
+so the MLE for observed data is$\frac{\sum_{i=1}^{n} y_i}{n-n_\tau}$.
+Complete data likelihood is
+$$L(\lambda|\mathbf{y})=\prod_{i=1}^{n} \frac{1}{\lambda} \exp \left(-y_{i} / \lambda\right)$$
+Denote $\delta_i=1$if $y_i \leq \tau$ and $\delta_i=0$ if $y_i$ is censored at $\tau$. For the censored data, denote the complete data is $t_i$. The E-step is
+$$\mathbb{E}_{\hat{\lambda}_0}\left[L(\lambda|\mathbf{y}) \mid \delta_i \right]=\mathbb{E}_{\hat{\lambda}_0}\left\{-n \log \lambda-\frac{1}{\lambda}\left[\sum_{i=1}^{n} \delta_{i} y_{i}+\left(1-\delta_{i}\right) t_{i}\right] \mid \delta_i\right\}$$
+Use the memoryless property of the exponential distribution, we can get $\mathbb{E}_{\hat{\lambda}_0}\left[t_i \mid \delta_i \right]=\tau + \hat{\lambda}_0$, so for the E-step we have
+$$\mathbb{E}_{\hat{\lambda}_0}\left[L(\lambda|\mathbf{y}) \mid \delta_i \right]=-n \log \lambda-\frac{1}{\lambda}\left[\sum_{i=1}^{n} \delta_{i} y_{i}+\left(1-\delta_{i}\right) (\tau + \hat{\lambda}_0)\right],$$
+maximize the above function to execute the M-step
+$$\hat{\lambda}_1=\frac{1}{n}\left[\sum_{i=1}^{n} \delta_{i} y_{i}+\left(1-\delta_{i}\right) (\tau + \hat{\lambda}_0)\right]=\frac{1}{n}\left[\sum_{i=1}^{n}y_i+n_{\tau}\hat{\lambda}_0\right],$$
+The converged $\lambda$ estimate is the solution of the following equation
+$$\lambda=\frac{1}{n}\left[\sum_{i=1}^{n}y_i+n_{\tau}\lambda\right] \Rightarrow \lambda=\frac{\sum_{i=1}^{n}y_i}{n-n_\tau}$$
+which is the same as the observed data MLE.
+
+Use EM algorithm to solve MLE of $\lambda$.
+```{r}
+y <- c(0.54, 0.48, 0.33, 0.43, 1.00, 1.00, 0.91, 1.00, 0.21, 0.85)
+lambda0 <- 0.5
+
+EMlambda <- function(y, lambda){
+  N <- 10000
+  tol <- .Machine$double.eps^0.5
+  n <- length(y)
+  nt <- sum(y==1)
+  
+  for(i in 1:N){
+    total <- sum(y)
+    lambda_old <- lambda
+    lambda <- (total + nt*lambda_old) / n
+    
+    if(abs(lambda - lambda_old)/lambda_old <tol) break
+  }
+  
+  return(lambda)
+}
+
+EMlambda(y, lambda0)
+```
+Using EM algorithm we get the estimation of $\lambda$ is about 0.964.
+
+
+## A-21003-2021-11-25
+
+## Question
+
+Exercises 1 and 5 (page 204, Advanced R)
+
+Exercises 1 and 7 (page 214, Advanced R)
+
+
+## Answer
+
+### 1.1
+
+在第一个`lapply`语句中`trims`的每个元素被显式地传递给了`mean`函数的第二个参数。而在第二个`lapply`语句中，`mean`函数的第一个参数经由位置匹配把`lapply`的第三个参数传给了它。二者得到结果实际是等价的。
+
+### 1.5
+
+```{r}
+rsq <- function(mod) summary(mod)$r.squared
+```
+
+- 对ex3中的模型
+```{r}
+formulas <- list(
+  mpg ~ disp,
+  mpg ~ I(1 / disp),
+  mpg ~ disp + wt,
+  mpg ~ I(1 / disp) + wt
+)
+
+fit3 <- lapply(formulas, lm, data = mtcars)
+sapply(fit3, rsq)
+```
+- 对ex4中的模型
+```{r}
+bootstraps <- lapply(1:10, function(i) {
+  rows <- sample(1:nrow(mtcars), rep = TRUE)
+  mtcars[rows, ]
+})
+
+fit4 <- lapply(bootstraps, lm, formula = mpg ~ disp)
+sapply(fit4, rsq)
+```
+
+### 2.1
+
+(a)对数值型数据框
+```{r}
+dt <- as.data.frame(matrix(1:9, nrow = 3))
+vapply(dt, sd, numeric(1))
+```
+(b)对混合型数据框，通过嵌套使用`vapply`两次
+```{r}
+#以iris数据集为例
+vapply(iris[vapply(iris, is.numeric, logical(1))], sd, numeric(1))
+```
+
+### 2.7
+
+- 实现`sapply()`的多核版本`mcsapply()`
+
+参照R中`sapply()`利用`lapply()`实现的方法，类似地可以实现`mcsapply()`
+```{r}
+# library(parallel)
+# cores <-  detectCores()
+mcsapply <- function(X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE){
+  FUN <- match.fun(FUN)
+  answer <- mclapply(X = X, FUN = FUN, ...)
+  if (USE.NAMES && is.character(X) && is.null(names(answer)))
+      names(answer) <- X
+  if (!identical(simplify, FALSE) && length(answer))
+      simplify2array(answer, higher = (simplify == "array"))
+  else answer
+}
+```
+而由于`vapply()`并未基于`lapply()`，因此难以实现它的并行版本`mcvapply()`。
+
+
+## A-21003-2021-12-02
+
+## Question
+
+Write an Rcpp function for Exercise 9.8 (page 278, Statistical Computing with R).
+
+
+## Answer
+
+由题知该二元密度$f(x,y),\quad x=0,1,...,n,0\leq y\leq 1$的条件分布分别为$Binomial(n,y)$和$Beta(x+a, n-x+b)$。利用Gibbs sampler生成该二元密度的随机数
+
+- R function
+```{r}
+#Gibbs sampler function, 固定n=10, a=1, b=2
+#R function for ex9.8
+gibbsR <- function(N, x0, y0, n=10, a=1, b=2){
+  X <- matrix(nrow = N, ncol = 2)
+  
+  #初始化
+  x <- x0
+  y <- y0
+  X[1,] <- c(x, y)
+  
+  for(i in 2:N){
+    y <- X[i-1, 2]
+    X[i, 1] <- rbinom(1, n, y)#x|y为Binomial(n,y)
+    x <- X[i, 1]
+    X[i, 2] <- rbeta(1, x+a, n-x+b)#y|x为Beta(x+a, n-x+b)
+  }
+  return(X)
+}
+```
+
+- Cpp function
+```{r}
+#Cpp function for ex9.8
+library(Rcpp)
+cppFunction('NumericMatrix gibbsC(int N, double x0, double y0, int n=10, int a=1, int b=2){
+  NumericMatrix mat(N, 2);
+  double x = x0, y = y0;
+  mat(0, 0) = x;
+  mat(0, 1) = y;
+
+  for(int i = 1; i < N; i++){
+    y = mat(i-1, 1);
+    mat(i, 0) = rbinom(1, n, y)[0];
+    x = mat(i, 0);
+    mat(i, 1) = rbeta(1, x+a, n-x+b)[0];
+  }
+  return mat;
+}')
+
+```
+
+- Compare the corresponding generated random numbers with pure R language using the function `qqplot`.
+```{r}
+set.seed(1198)
+#初始化
+n <- 10
+a <- 1
+b <- 2
+N <- 5000
+x0 <- 0.5*n
+y0 <- (x0+a) / (n+a+b)
+
+Chain_R <- gibbsR(N, x0, y0)
+Chain_Cpp <- gibbsC(N, x0, y0)
+
+##qqplot compare for x
+par(mfrow=c(1,2))
+burn <- 1000
+x_R <- as.numeric(Chain_R[(burn+1):N,1])
+x_Cpp <- as.numeric(Chain_Cpp[(burn+1):N,1])
+p <- ppoints(100)
+qqplot(quantile(x_R, p), quantile(x_Cpp, p), xlab = "R", ylab = "Rcpp")
+##qqplot compare for y
+y_R <- as.numeric(Chain_R[(burn+1):N,2])
+y_Cpp <- as.numeric(Chain_Cpp[(burn+1):N,2])
+qqplot(quantile(y_R, p), quantile(y_Cpp, p), xlab = "R", ylab = "Rcpp")
+```
+
+
+- Campare the computation time of the two functions with the
+function `microbenchmark`.
+```{r}
+library(microbenchmark)
+ts <- microbenchmark(gR=gibbsR(N, x0, y0), gC=gibbsC(N, x0, y0))
+summary(ts)[,c(1,3,5,6)]
+```
+结论：(1)从qq图可以看到，利用R和Rcpp生成的随机数x, y分布相同。(2)从计算时间来看，利用Rcpp生成随机数的速度更快。
+
+
+
+
